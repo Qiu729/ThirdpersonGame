@@ -1,0 +1,162 @@
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
+using Fusion;
+using TMPro;
+using UnityEngine;
+using UnityEngine.InputSystem;
+using UnityEngine.SceneManagement;
+using UnityEngine.UI;
+
+namespace Starter {
+    /// <summary>
+    /// Shows in-game menu, handles player connecting/disconnecting to the network game and cursor locking.
+    /// </summary>
+    public class UIGameMenu : MonoBehaviour {
+        [Header("Start Game Setup")]
+        public NetworkRunner RunnerPrefab;
+        public int MaxPlayerCount = 8;
+
+        [Header("Debug")]
+        [Tooltip("����ʱΪ�˿��ٲ��ԣ�����ǿ�Ƶ���ģʽ")]
+        public bool ForceSinglePlayer;
+
+        [Header("UI Setup")]
+        public CanvasGroup PanelGroup;
+        public TMP_InputField RoomText;
+        public TMP_InputField NicknameText;
+        public TextMeshProUGUI StatusText;
+        public GameObject StartGroup;
+        public GameObject DisconnectGroup;
+        public Toggle SingalToggle; // ����ģʽ�л���ť
+
+        private NetworkRunner _runnerInstance;
+        private static string _shutdownStatus;
+
+        public async void StartGame() {
+            await Disconnect();
+
+            PlayerPrefs.SetString("PlayerName", NicknameText.text);
+
+            _runnerInstance = Instantiate(RunnerPrefab);
+
+            // Add listener for shutdowns so we can handle unexpected shutdowns
+            var events = _runnerInstance.GetComponent<NetworkEvents>();
+            events.OnShutdown.AddListener(OnShutdown);
+
+            var sceneInfo = new NetworkSceneInfo();
+            sceneInfo.AddSceneRef(SceneRef.FromIndex(SceneManager.GetActiveScene().buildIndex));
+            var startArguments = new StartGameArgs() {
+                GameMode = Application.isEditor && ForceSinglePlayer ? GameMode.Single : GameMode.AutoHostOrClient,
+                SessionName = RoomText.text,
+                PlayerCount = MaxPlayerCount,
+                Scene = sceneInfo,
+            };
+
+            StatusText.text = startArguments.GameMode == GameMode.Single ? "Starting single-player..." : "Connecting...";
+
+            var startTask = _runnerInstance.StartGame(startArguments);
+            await startTask;
+
+            if (startTask.Result.Ok) {
+                StatusText.text = "";
+                PanelGroup.gameObject.SetActive(false);
+
+            } else {
+                StatusText.text = $"Connection Failed: {startTask.Result.ShutdownReason}";
+            }
+        }
+
+        public async void DisconnectClicked() {
+            await Disconnect();
+        }
+
+        public async void BackToMenu() {
+            await Disconnect();
+
+            SceneManager.LoadScene(0);
+        }
+
+        public void TogglePanelVisibility() {
+            if (PanelGroup.gameObject.activeSelf && _runnerInstance == null)
+                return; // Panel cannot be hidden if the game is not running
+
+            PanelGroup.gameObject.SetActive(!PanelGroup.gameObject.activeSelf);
+        }
+
+        public void OnSingalToggleChange() {
+            if (SingalToggle.isOn) {
+                ForceSinglePlayer = true;
+            } else {
+                ForceSinglePlayer = false;
+            }
+        }
+
+
+        private void OnEnable() {
+            Application.targetFrameRate = 60;
+
+            var nickname = PlayerPrefs.GetString("PlayerName");
+            if (string.IsNullOrEmpty(nickname)) {
+                nickname = "Player" + Random.Range(10000, 100000);
+            }
+
+            NicknameText.text = nickname;
+
+            // Try to load previous shutdown status
+            StatusText.text = _shutdownStatus != null ? _shutdownStatus : string.Empty;
+            _shutdownStatus = null;
+        }
+
+        private void Update() {
+            // Enter/Esc key is used for locking/unlocking cursor in game view.
+            var keyboard = Keyboard.current;
+            if (keyboard != null && (keyboard.enterKey.wasPressedThisFrame || keyboard.escapeKey.wasPressedThisFrame)) {
+                TogglePanelVisibility();
+            }
+
+            if (PanelGroup.gameObject.activeSelf) {
+                StartGroup.SetActive(_runnerInstance == null);
+                DisconnectGroup.SetActive(_runnerInstance != null);
+                RoomText.interactable = _runnerInstance == null;
+                NicknameText.interactable = _runnerInstance == null;
+                SingalToggle.interactable = _runnerInstance == null;
+
+                Cursor.lockState = CursorLockMode.None;
+                Cursor.visible = true;
+            } else {
+                Cursor.lockState = CursorLockMode.Locked;
+                Cursor.visible = false;
+            }
+        }
+
+        public async Task Disconnect() {
+            if (_runnerInstance == null)
+                return;
+
+            StatusText.text = "Disconnecting...";
+            PanelGroup.interactable = false;
+
+            // Remove shutdown listener since we are disconnecting deliberately
+            var events = _runnerInstance.GetComponent<NetworkEvents>();
+            events.OnShutdown.RemoveListener(OnShutdown);
+
+            await _runnerInstance.Shutdown();
+            _runnerInstance = null;
+
+            // Reset of scene network objects is needed, reload the whole scene
+            SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
+        }
+
+        private void OnShutdown(NetworkRunner runner, ShutdownReason reason) {
+            // Unexpected shutdown happened (e.g. Host disconnected)
+
+            // Save status into static variable, it will be used in OnEnable after scene load
+            _shutdownStatus = $"Shutdown: {reason}";
+            Debug.LogWarning(_shutdownStatus);
+
+            // Reset of scene network objects is needed, reload the whole scene
+            SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
+        }
+    }
+}
