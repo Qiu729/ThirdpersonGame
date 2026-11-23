@@ -1,0 +1,77 @@
+name: Repository review
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+    branches: [main]
+    types: [opened, synchronize, reopened, edited, ready_for_review]
+
+permissions:
+  contents: read
+
+jobs:
+  review:
+    name: ${{ github.event_name == 'pull_request' && 'PR Review' || 'Push Review' }}
+    if: github.event_name == 'pull_request' || !github.event.deleted
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check branch name
+        shell: bash
+        env:
+          BRANCH: ${{ github.head_ref || github.ref_name }}
+        run: |
+          if [[ "$GITHUB_EVENT_NAME:$BRANCH" == push:main ]]; then
+            exit 0
+          fi
+          if [[ ! "$BRANCH" =~ ^(feature|fix)/[^/]+$ ]]; then
+            echo '::error::Use a feature/<name> or fix/<name> branch.'
+            exit 1
+          fi
+
+      - name: Check out the revision under review
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Review changed files and Unity metadata
+        shell: bash
+        env:
+          PUSH_BEFORE: ${{ github.event.before }}
+        run: |
+          if [[ "$GITHUB_EVENT_NAME" == pull_request ]]; then
+            # The first parent of GitHub's test merge is the PR base.
+            base=$(git rev-parse HEAD^1)
+          elif [[ "$PUSH_BEFORE" =~ ^0+$ ]]; then
+            base=$(git merge-base HEAD refs/remotes/origin/main)
+          else
+            if ! git cat-file -e "$PUSH_BEFORE^{commit}"; then
+              git fetch --no-tags origin "$PUSH_BEFORE"
+            fi
+            base="$PUSH_BEFORE"
+          fi
+
+          # Unity's serialized YAML can contain trailing spaces in empty fields.
+          git -c core.whitespace=-blank-at-eol diff --check "$base" HEAD
+
+          for file in Packages/manifest.json Packages/packages-lock.json; do
+            if ! jq -e 'type == "object" and (.dependencies | type == "object")' "$file" >/dev/null; then
+              echo "::error file=$file::Expected valid Unity package JSON with a dependencies object."
+              exit 1
+            fi
+          done
+          if ! grep -Eq '^m_EditorVersion: [0-9]+\.[0-9]+\.[0-9]+[[:alnum:]]+[[:space:]]*$' ProjectSettings/ProjectVersion.txt; then
+            echo '::error file=ProjectSettings/ProjectVersion.txt::Missing or invalid Unity Editor version.'
+            exit 1
+          fi
+
+          missing_meta=0
+          while IFS= read -r -d '' path; do
+            if [[ "$path" == *.cs ]] && ! git cat-file -e "HEAD:$path.meta" 2>/dev/null; then
+              echo "::error::Missing Unity metadata for $path"
+              missing_meta=1
+            fi
+          done < <(git diff --name-only --diff-filter=AR -z "$base" HEAD -- Assets/)
+          exit "$missing_meta"
