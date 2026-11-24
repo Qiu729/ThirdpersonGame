@@ -105,7 +105,7 @@ namespace ThirdpersonGame {
                     if (hit.Hitbox != null) {
                         var obj = hit.Hitbox.Root.transform.GetComponent<IDamageable>();
                         if (obj != null) {
-                            obj.TakeDamage();
+                            obj.TakeDamage(new DamageEvent(obj, 1f, gameObject.GetComponent<IDamageSource>()));
                         }
                     }
                 }

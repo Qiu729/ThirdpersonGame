@@ -28,6 +28,8 @@ namespace ThirdpersonGame {
         [Networked] public NetworkBool IsFire { get; set; } // 玩家是否处于开火状态
         [Networked] public int CurrHealth { get; set; } // 玩家生命值
 
+        public bool IsAlive => true; // 还没添加死亡逻辑，所以暂时默认玩家一直活着
+
         [Header("Health")]
         public int MaxHealth = 100;
 
@@ -519,6 +521,10 @@ namespace ThirdpersonGame {
         #region 受击处理
         public void TakeDamage() {
             CurrHealth -= 1;
+        }
+
+        public void TakeDamage(DamageEvent damageEvent) {
+            throw new System.NotImplementedException();
         }
         #endregion
 

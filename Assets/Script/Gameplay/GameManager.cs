@@ -19,6 +19,7 @@ namespace Starter.ThirdPersonCharacter {
         // UnityÊÂ¼ş
         public UnityEvent PlayerJoin;
 
+
         public override void Spawned() {
             runner = Runner;
         }
