@@ -12,6 +12,22 @@
 /[Uu]ser[Ss]ettings/
 *.log
 
+# Local Unity Version Control and IDE workspace files
+/.plastic/
+/.vscode/
+/.vsconfig
+/.vsconfig_dst
+/.idea/
+
+# Local repository backups and exported gameplay captures
+/temp git/
+/项目演示/
+
+# Operating system metadata
+.DS_Store
+Thumbs.db
+Desktop.ini
+
 # MemoryCaptures can get excessive in size.
 # They also could contain extremely sensitive data
 /[Mm]emoryCaptures/
