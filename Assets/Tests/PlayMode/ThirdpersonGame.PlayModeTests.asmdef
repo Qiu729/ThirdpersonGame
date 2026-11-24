@@ -1,0 +1,4 @@
+{
+    "name": "ThirdpersonGame.PlayModeTests",
+    "optionalUnityReferences": ["TestAssemblies"]
+}

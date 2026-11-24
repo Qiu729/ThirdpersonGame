@@ -1,0 +1,5 @@
+{
+    "name": "ThirdpersonGame.EditModeTests",
+    "includePlatforms": ["Editor"],
+    "optionalUnityReferences": ["TestAssemblies"]
+}
