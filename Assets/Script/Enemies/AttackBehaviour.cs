@@ -43,11 +43,17 @@ public class AttackBehavior : MonoBehaviour, IEnemyBehavior {
     }
 
     private void DoAttack() {
-        Debug.Log($"{name} performs attack!", this);
+        // 动画
+        ai.animator.SetTrigger("Attack");
 
-        // 🔔 后续在这里实现：
-        // - animator.SetTrigger("Attack")
-        // - 播放音效/特效
-        // - 调用伤害系统（RPC / 事件）
+        // 播放音效/特效
+
+
+        // 调用伤害系统（RPC / 事件）
+        var player = ai.player.gameObject.GetComponent<DamageableBehaviour>();
+        if (player != null) {
+            //Debug.Log("triggerDamge!");
+            GameEventSystem.TriggerDamage(new DamageEvent(player, 1, ai));
+        }
     }
 }

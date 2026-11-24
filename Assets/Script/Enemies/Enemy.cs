@@ -16,6 +16,10 @@ public class Enemy : NetworkBehaviour, IDamageable {
     // 网络同步参数
     [Networked] private Color _Color { get; set; }
 
+    bool IDamageable.IsAlive => true; // 还没添加hp系统，所以暂时默认敌人一直活着
+
+    public bool IsAlive;
+
     private void Awake() {
         Renderer = GetComponent<MeshRenderer>();
     }
@@ -38,5 +42,9 @@ public class Enemy : NetworkBehaviour, IDamageable {
         yield return new WaitForSeconds(0.02f);
         _Color = Color.white;
         restoreColorCoroutine = null; // 重置引用
+    }
+
+    public void TakeDamage(DamageEvent damageEvent) {
+        throw new System.NotImplementedException();
     }
 }

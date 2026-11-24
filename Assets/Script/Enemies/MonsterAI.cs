@@ -2,7 +2,7 @@
 using UnityEngine;
 using UnityEngine.AI;
 
-public class MonsterAI : MonoBehaviour {
+public class MonsterAI : MonoBehaviour, IDamageable, IDamageSource {
     [Header("References")]
     public Transform player;
     public NavMeshAgent agent;
@@ -19,6 +19,10 @@ public class MonsterAI : MonoBehaviour {
     public AttackBehavior attack;
 
     public IEnemyBehavior currentBehavior;
+
+    public bool IsAlive => true; //生命部分暂时未实现，先返回true
+
+    public GameObject SourceObject => this.gameObject;
 
     public void OnPlayerJoined() {
         player = GameObject.FindGameObjectWithTag("Player")?.transform;
@@ -72,4 +76,9 @@ public class MonsterAI : MonoBehaviour {
 
     public bool ShouldExitAttack() =>
         player != null && Vector3.Distance(transform.position, player.position) > attackRadiusOut;
+
+    public void TakeDamage(DamageEvent damageEvent) {
+        Debug.Log($"{name} took {damageEvent.Amount} damage from {damageEvent.Source.SourceObject.name}");
+        throw new System.NotImplementedException();
+    }
 }
