@@ -94,7 +94,7 @@ namespace Starter {
 
 
         private void OnEnable() {
-            Application.targetFrameRate = 60;
+            //Application.targetFrameRate = 60;
 
             var nickname = PlayerPrefs.GetString("PlayerName");
             if (string.IsNullOrEmpty(nickname)) {
